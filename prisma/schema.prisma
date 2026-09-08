@@ -29,9 +29,11 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  profile  StudentProfile?
+  accounts      Account[]
+  sessions      Session[]
+  profile       StudentProfile?
+  studySessions StudySession[]
+  answers       Answer[]
 }
 
 model Account {
@@ -80,6 +82,9 @@ model StudyGroup {
   createdAt   DateTime @default(now())
 
   studentProfiles StudentProfile[]
+  subjects        Subject[]
+  questions       Question[]
+  studySessions   StudySession[]
 }
 
 model StudentProfile {
@@ -94,4 +99,112 @@ model StudentProfile {
 
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   primaryGroup StudyGroup? @relation(fields: [primaryGroupId], references: [id])
+}
+
+// ---------- Disciplinas e questões ----------
+
+enum SubjectBlock {
+  BASICO
+  GERAL
+  ESPECIFICO
+}
+
+model Subject {
+  id        String       @id @default(cuid())
+  groupId   String
+  name      String
+  block     SubjectBlock @default(ESPECIFICO)
+  createdAt DateTime     @default(now())
+
+  group     StudyGroup @relation(fields: [groupId], references: [id])
+  questions Question[]
+
+  @@index([groupId])
+}
+
+enum QuestionType {
+  MULTIPLA_ESCOLHA
+  DISCURSIVA
+}
+
+enum Difficulty {
+  FACIL
+  MEDIO
+  DIFICIL
+}
+
+enum StudyIntensity {
+  CURTA
+  ALMOCO
+  FOCO
+}
+
+model Question {
+  id               String           @id @default(cuid())
+  groupId          String
+  subjectId        String?
+  type             QuestionType
+  difficulty       Difficulty       @default(MEDIO)
+  intensity        StudyIntensity[]
+  statement        String           @db.Text
+  options          Json?
+  correctOptionId  String?
+  rubric           String?          @db.Text
+  estimatedSeconds Int              @default(120)
+  generatedBy      String           @default("fixture")
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+
+  group   StudyGroup @relation(fields: [groupId], references: [id])
+  subject Subject?   @relation(fields: [subjectId], references: [id])
+  answers Answer[]
+
+  @@index([groupId, subjectId, type, difficulty])
+}
+
+// ---------- Sessões de estudo ("pílulas") ----------
+
+enum SessionStatus {
+  EM_ANDAMENTO
+  FINALIZADA
+  ABANDONADA
+}
+
+model StudySession {
+  id              String         @id @default(cuid())
+  userId          String
+  groupId         String
+  intensity       StudyIntensity
+  status          SessionStatus  @default(EM_ANDAMENTO)
+  startedAt       DateTime       @default(now())
+  finishedAt      DateTime?
+  scoreObjective  Float?
+  scoreDiscursive Float?
+
+  user    User       @relation(fields: [userId], references: [id])
+  group   StudyGroup @relation(fields: [groupId], references: [id])
+  answers Answer[]
+
+  @@index([userId, status])
+}
+
+model Answer {
+  id               String    @id @default(cuid())
+  sessionId        String
+  questionId       String
+  userId           String
+  order            Int       @default(0)
+  selectedOptionId String?
+  textAnswer       String?   @db.Text
+  isCorrect        Boolean?
+  answeredAt       DateTime?
+  timeSpentSeconds Int?
+
+  session  StudySession @relation(fields: [sessionId], references: [id])
+  question Question     @relation(fields: [questionId], references: [id])
+  user     User         @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, questionId])
+  @@index([sessionId])
+  @@index([userId])
 }

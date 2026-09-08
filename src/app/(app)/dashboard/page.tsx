@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import {
@@ -14,6 +15,8 @@ export default async function DashboardPage() {
     include: { primaryGroup: true },
   });
 
+  const groupSlug = profile?.primaryGroup?.slug;
+
   return (
     <div className="space-y-6">
       <div>
@@ -24,27 +27,29 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Estudar agora</CardTitle>
-            <CardDescription>
-              Escolha uma sessão rápida, de almoço ou focada.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-        <Card>
+        <Link href={groupSlug ? `/estudar/${groupSlug}` : "#"}>
+          <Card className="h-full transition-colors hover:bg-accent">
+            <CardHeader>
+              <CardTitle>Estudar agora</CardTitle>
+              <CardDescription>
+                Escolha uma sessão rápida, de almoço ou focada.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Card className="opacity-60">
           <CardHeader>
             <CardTitle>Meu edital</CardTitle>
             <CardDescription>
-              Envie um edital e gere sua trilha personalizada.
+              Envie um edital e gere sua trilha personalizada. (em breve)
             </CardDescription>
           </CardHeader>
         </Card>
-        <Card>
+        <Card className="opacity-60">
           <CardHeader>
             <CardTitle>Progresso</CardTitle>
             <CardDescription>
-              Acompanhe seu desempenho nas sessões de estudo.
+              Acompanhe seu desempenho nas sessões de estudo. (em breve)
             </CardDescription>
           </CardHeader>
         </Card>
