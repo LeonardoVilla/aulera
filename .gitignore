@@ -48,3 +48,6 @@ next-env.d.ts
 /.windsurf/
 /.claude/skills/
 skills-lock.json
+
+# Claude Code session state (not project state)
+/.claude/scheduled_tasks.lock
