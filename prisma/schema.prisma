@@ -38,6 +38,7 @@ model User {
   subscriptions Subscription[]
   editais       Edital[]
   trilhas       Trilha[]
+  auditLogs     AuditLog[]
 }
 
 model Account {
@@ -468,4 +469,40 @@ model TrilhaItem {
   studySessions StudySession[]
 
   @@index([trilhaId, scheduledDate])
+}
+
+// ---------- Painel admin de integrações ----------
+
+enum IntegrationStatus {
+  DESCONHECIDO
+  OK
+  ERRO
+  DESATIVADO
+}
+
+model Integration {
+  id            String            @id @default(cuid())
+  provider      String            @unique // "gemini" | "stripe" | "vercel_blob"
+  displayName   String
+  isEnabled     Boolean           @default(true)
+  encryptedKey  String?           @db.Text
+  keyLastFour   String?
+  rotatedAt     DateTime?
+  status        IntegrationStatus @default(DESCONHECIDO)
+  lastCheckedAt DateTime?
+  metadata      Json?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String?
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
 }
