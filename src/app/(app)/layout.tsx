@@ -19,7 +19,9 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
-        <span className="font-semibold">Estudos para Concursos</span>
+        <Link href="/dashboard" className="font-semibold hover:underline">
+          Estudos para Concursos
+        </Link>
         <div className="flex items-center gap-4 text-sm">
           {isGamificado && (
             <GamificacaoStatusBar
