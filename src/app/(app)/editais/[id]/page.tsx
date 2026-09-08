@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { requireOnboardedUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { reprocessarEdital } from "@/actions/editais";
+import { gerarTrilha } from "@/actions/trilhas";
 import {
   Card,
   CardContent,
@@ -56,12 +58,15 @@ export default async function EditalDetailPage({
     include: {
       subjects: { orderBy: [{ block: "asc" }, { name: "asc" }] },
       scheduleEvents: { orderBy: { startDate: "asc" } },
+      trilhas: { orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 
   if (!edital) {
     notFound();
   }
+
+  const existingTrilha = edital.trilhas[0] ?? null;
 
   const isProcessing =
     edital.status === "PENDENTE" ||
@@ -183,6 +188,33 @@ export default async function EditalDetailPage({
                     : "—"}
                 </p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Trilha de estudos</CardTitle>
+              <CardDescription>
+                {existingTrilha
+                  ? "Sua trilha personalizada para este edital já foi gerada."
+                  : "Monte um cronograma de estudos personalizado até a data da prova."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {existingTrilha ? (
+                <Button asChild>
+                  <Link href={`/trilha/${existingTrilha.id}`}>Ver trilha</Link>
+                </Button>
+              ) : (
+                <form
+                  action={async () => {
+                    "use server";
+                    await gerarTrilha(edital.id);
+                  }}
+                >
+                  <Button type="submit">Gerar trilha de estudos</Button>
+                </form>
+              )}
             </CardContent>
           </Card>
 

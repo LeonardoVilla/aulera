@@ -20,7 +20,11 @@ const DISCURSIVE_COUNT_BY_INTENSITY: Record<StudyIntensity, number> = {
   FOCO: 1,
 };
 
-export async function iniciarSessao(groupSlug: string, intensity: StudyIntensity) {
+export async function iniciarSessao(
+  groupSlug: string,
+  intensity: StudyIntensity,
+  trilhaItemId?: string,
+) {
   const user = await requireUser();
 
   const group = await prisma.studyGroup.findUniqueOrThrow({
@@ -82,6 +86,7 @@ export async function iniciarSessao(groupSlug: string, intensity: StudyIntensity
         userId: user.id,
         groupId: group.id,
         intensity,
+        trilhaItemId,
       },
     });
 
@@ -277,6 +282,13 @@ export async function finalizarSessao(sessionId: string) {
   });
 
   await applyGamificationForSession(sessionId);
+
+  if (session.trilhaItemId) {
+    await prisma.trilhaItem.update({
+      where: { id: session.trilhaItemId },
+      data: { status: "CONCLUIDO", completedAt: new Date() },
+    });
+  }
 
   redirect(`/sessao/${sessionId}/resultado`);
 }

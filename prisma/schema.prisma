@@ -154,8 +154,9 @@ model Subject {
   block     SubjectBlock @default(ESPECIFICO)
   createdAt DateTime     @default(now())
 
-  group     StudyGroup @relation(fields: [groupId], references: [id])
-  questions Question[]
+  group       StudyGroup   @relation(fields: [groupId], references: [id])
+  questions   Question[]
+  trilhaItems TrilhaItem[]
 
   @@index([groupId])
 }
@@ -463,6 +464,7 @@ model TrilhaItem {
   completedAt   DateTime?
 
   trilha        Trilha         @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  subject       Subject?       @relation(fields: [subjectId], references: [id])
   studySessions StudySession[]
 
   @@index([trilhaId, scheduledDate])
