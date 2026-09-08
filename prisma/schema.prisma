@@ -35,6 +35,9 @@ model User {
   studySessions StudySession[]
   answers       Answer[]
   aiUsageLogs   AIUsageLog[]
+  subscriptions Subscription[]
+  editais       Edital[]
+  trilhas       Trilha[]
 }
 
 model Account {
@@ -224,6 +227,7 @@ model StudySession {
   id              String         @id @default(cuid())
   userId          String
   groupId         String
+  trilhaItemId    String?
   intensity       StudyIntensity
   status          SessionStatus  @default(EM_ANDAMENTO)
   startedAt       DateTime       @default(now())
@@ -231,9 +235,10 @@ model StudySession {
   scoreObjective  Float?
   scoreDiscursive Float?
 
-  user    User       @relation(fields: [userId], references: [id])
-  group   StudyGroup @relation(fields: [groupId], references: [id])
-  answers Answer[]
+  user       User        @relation(fields: [userId], references: [id])
+  group      StudyGroup  @relation(fields: [groupId], references: [id])
+  trilhaItem TrilhaItem? @relation(fields: [trilhaItemId], references: [id])
+  answers    Answer[]
 
   @@index([userId, status])
 }
@@ -250,13 +255,27 @@ model Answer {
   answeredAt       DateTime?
   timeSpentSeconds Int?
 
-  session  StudySession @relation(fields: [sessionId], references: [id])
-  question Question     @relation(fields: [questionId], references: [id])
-  user     User         @relation(fields: [userId], references: [id])
+  session    StudySession  @relation(fields: [sessionId], references: [id])
+  question   Question      @relation(fields: [questionId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
+  correction AICorrection?
 
   @@unique([sessionId, questionId])
   @@index([sessionId])
   @@index([userId])
+}
+
+model AICorrection {
+  id         String   @id @default(cuid())
+  answerId   String   @unique
+  score      Float
+  feedback   String   @db.Text
+  strengths  Json?
+  weaknesses Json?
+  model      String
+  createdAt  DateTime @default(now())
+
+  answer Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
 }
 
 // ---------- Observabilidade de uso de IA ----------
@@ -278,4 +297,173 @@ model AIUsageLog {
 
   @@index([createdAt])
   @@index([operation])
+}
+
+// ---------- Billing / Stripe ----------
+
+model Plan {
+  id                   String   @id @default(cuid())
+  code                 String   @unique // "FREE" | "BASICO" | "PREMIUM"
+  name                 String
+  stripePriceId        String?
+  monthlyPriceUsdCents Int?
+  createdAt            DateTime @default(now())
+
+  features      PlanFeature[]
+  subscriptions Subscription[]
+}
+
+model PlanFeature {
+  id     String @id @default(cuid())
+  planId String
+  key    String // "max_editais_ativos" | "trilha_profundidade_dias" | "correcoes_discursivas_mes"
+  value  String
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, key])
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  planId               String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  status               SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([userId, status])
+}
+
+// ---------- Editais e parsing ----------
+
+enum EditalStatus {
+  PENDENTE
+  EXTRAINDO_TEXTO
+  PARSEANDO_IA
+  CONCLUIDO
+  ERRO
+}
+
+model Edital {
+  id                   String       @id @default(cuid())
+  userId               String
+  originalFileName     String
+  blobUrl              String
+  status               EditalStatus @default(PENDENTE)
+  errorMessage         String?      @db.Text
+  rawText              String?      @db.Text
+  parsedJson           Json?
+  orgao                String?
+  cargo                String?
+  examDate             DateTime?
+  registrationDeadline DateTime?
+  resultDate           DateTime?
+  createdAt            DateTime     @default(now())
+  parsedAt             DateTime?
+
+  user           User                  @relation(fields: [userId], references: [id])
+  subjects       EditalSubject[]
+  scheduleEvents EditalScheduleEvent[]
+  trilhas        Trilha[]
+
+  @@index([userId, status])
+}
+
+model EditalSubject {
+  id           String       @id @default(cuid())
+  editalId     String
+  block        SubjectBlock
+  name         String
+  numQuestions Int?
+  weight       Float?
+
+  edital Edital @relation(fields: [editalId], references: [id], onDelete: Cascade)
+
+  @@index([editalId])
+}
+
+enum ScheduleEventKind {
+  INSCRICAO
+  PROVA_OBJETIVA
+  PROVA_DISCURSIVA
+  GABARITO
+  RECURSO
+  RESULTADO
+  OUTRO
+}
+
+model EditalScheduleEvent {
+  id        String            @id @default(cuid())
+  editalId  String
+  label     String
+  startDate DateTime
+  endDate   DateTime?
+  kind      ScheduleEventKind @default(OUTRO)
+
+  edital Edital @relation(fields: [editalId], references: [id], onDelete: Cascade)
+
+  @@index([editalId])
+}
+
+// ---------- Trilha de estudos gerada ----------
+
+enum TrilhaStatus {
+  ATIVA
+  CONCLUIDA
+  ARQUIVADA
+}
+
+model Trilha {
+  id         String       @id @default(cuid())
+  userId     String
+  editalId   String?
+  title      String
+  startDate  DateTime     @default(now())
+  targetDate DateTime?
+  status     TrilhaStatus @default(ATIVA)
+  createdAt  DateTime     @default(now())
+
+  user   User         @relation(fields: [userId], references: [id])
+  edital Edital?      @relation(fields: [editalId], references: [id])
+  items  TrilhaItem[]
+
+  @@index([userId, status])
+}
+
+enum TrilhaItemStatus {
+  PENDENTE
+  CONCLUIDO
+  PULADO
+}
+
+model TrilhaItem {
+  id            String           @id @default(cuid())
+  trilhaId      String
+  scheduledDate DateTime
+  order         Int
+  subjectId     String?
+  intensity     StudyIntensity   @default(CURTA)
+  status        TrilhaItemStatus @default(PENDENTE)
+  completedAt   DateTime?
+
+  trilha        Trilha         @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  studySessions StudySession[]
+
+  @@index([trilhaId, scheduledDate])
 }

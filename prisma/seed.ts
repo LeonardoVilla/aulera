@@ -362,6 +362,59 @@ async function main() {
       create: badge,
     });
   }
+
+  const PLANS = [
+    {
+      code: "FREE",
+      name: "Gratuito",
+      monthlyPriceUsdCents: 0,
+      features: {
+        max_editais_ativos: "1",
+        trilha_profundidade_dias: "14",
+        correcoes_discursivas_mes: "5",
+      },
+    },
+    {
+      code: "BASICO",
+      name: "Básico",
+      monthlyPriceUsdCents: 1990,
+      features: {
+        max_editais_ativos: "3",
+        trilha_profundidade_dias: "9999",
+        correcoes_discursivas_mes: "50",
+      },
+    },
+    {
+      code: "PREMIUM",
+      name: "Premium",
+      monthlyPriceUsdCents: 3990,
+      features: {
+        max_editais_ativos: "10",
+        trilha_profundidade_dias: "9999",
+        correcoes_discursivas_mes: "9999",
+      },
+    },
+  ];
+
+  for (const planDef of PLANS) {
+    const plan = await prisma.plan.upsert({
+      where: { code: planDef.code },
+      update: { name: planDef.name, monthlyPriceUsdCents: planDef.monthlyPriceUsdCents },
+      create: {
+        code: planDef.code,
+        name: planDef.name,
+        monthlyPriceUsdCents: planDef.monthlyPriceUsdCents,
+      },
+    });
+
+    for (const [key, value] of Object.entries(planDef.features)) {
+      await prisma.planFeature.upsert({
+        where: { planId_key: { planId: plan.id, key } },
+        update: { value },
+        create: { planId: plan.id, key, value },
+      });
+    }
+  }
 }
 
 main()

@@ -4,6 +4,7 @@ import type {
   GeneratedDiscursiveQuestion,
 } from "@/lib/ai/schemas/questao.schema";
 import type { GradeResult } from "@/lib/ai/schemas/correcao.schema";
+import type { ParsedEdital } from "@/lib/ai/schemas/edital.schema";
 
 export type GenerateObjectiveQuestionsInput = {
   groupName: string;
@@ -26,6 +27,10 @@ export type GradeDiscursiveInput = {
   studentAnswer: string;
 };
 
+export type ParseEditalInput = {
+  rawText: string;
+};
+
 export interface AIProvider {
   generateObjectiveQuestions(
     input: GenerateObjectiveQuestionsInput,
@@ -36,4 +41,6 @@ export interface AIProvider {
   ): Promise<GeneratedDiscursiveQuestion>;
 
   gradeDiscursive(input: GradeDiscursiveInput): Promise<GradeResult>;
+
+  parseEdital(input: ParseEditalInput): Promise<ParsedEdital>;
 }

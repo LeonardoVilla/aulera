@@ -68,14 +68,16 @@ export default async function DashboardPage() {
             </CardHeader>
           </Card>
         </Link>
-        <Card className="opacity-60">
-          <CardHeader>
-            <CardTitle>Meu edital</CardTitle>
-            <CardDescription>
-              Envie um edital e gere sua trilha personalizada. (em breve)
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <Link href="/editais">
+          <Card className="h-full transition-colors hover:bg-accent">
+            <CardHeader>
+              <CardTitle>Meu edital</CardTitle>
+              <CardDescription>
+                Envie um edital e gere sua trilha personalizada.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
         <Card className="opacity-60">
           <CardHeader>
             <CardTitle>Progresso</CardTitle>

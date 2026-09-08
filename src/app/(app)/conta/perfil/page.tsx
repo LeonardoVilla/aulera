@@ -94,6 +94,10 @@ export default async function PerfilPage({
       <Button asChild variant="outline" className="w-full">
         <Link href="/conta/conquistas">Ver minhas conquistas</Link>
       </Button>
+
+      <Button asChild variant="outline" className="w-full">
+        <Link href="/conta/assinatura">Gerenciar assinatura</Link>
+      </Button>
     </div>
   );
 }

@@ -27,14 +27,23 @@ export default async function ResultadoSessaoPage({
     where: { id: sessaoId },
     include: {
       group: true,
-      answers: { include: { question: true }, orderBy: { order: "asc" } },
+      answers: {
+        include: { question: true, correction: true },
+        orderBy: { order: "asc" },
+      },
     },
   });
 
   if (!session || session.userId !== user.id) notFound();
 
-  const correctCount = session.answers.filter((a) => a.isCorrect).length;
-  const total = session.answers.length;
+  const objectiveAnswers = session.answers.filter(
+    (a) => a.question.type === "MULTIPLA_ESCOLHA",
+  );
+  const correctCount = objectiveAnswers.filter((a) => a.isCorrect).length;
+  const total = objectiveAnswers.length;
+  const discursiveAnswers = session.answers.filter(
+    (a) => a.question.type === "DISCURSIVA",
+  );
 
   if (isGamificado) {
     return (
@@ -74,7 +83,7 @@ export default async function ResultadoSessaoPage({
       </Card>
 
       <div className="space-y-3">
-        {session.answers.map((a) => {
+        {objectiveAnswers.map((a) => {
           const options =
             (a.question.options as { id: string; text: string }[] | null) ??
             [];
@@ -103,6 +112,40 @@ export default async function ResultadoSessaoPage({
                   <p className="text-green-600">
                     Correta: {correctOption.id}) {correctOption.text}
                   </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {discursiveAnswers.map((a) => {
+          const strengths = (a.correction?.strengths as string[] | null) ?? [];
+          const weaknesses = (a.correction?.weaknesses as string[] | null) ?? [];
+
+          return (
+            <Card key={a.id}>
+              <CardContent className="space-y-2 pt-6 text-sm">
+                <p className="font-medium">{a.question.statement}</p>
+                <p className="text-muted-foreground">
+                  Sua resposta: {a.textAnswer ?? "não respondida"}
+                </p>
+                {a.correction && (
+                  <>
+                    <p className="font-semibold">
+                      Nota: {a.correction.score.toFixed(1)}/10
+                    </p>
+                    <p>{a.correction.feedback}</p>
+                    {strengths.length > 0 && (
+                      <p className="text-green-600">
+                        Pontos fortes: {strengths.join(" · ")}
+                      </p>
+                    )}
+                    {weaknesses.length > 0 && (
+                      <p className="text-destructive">
+                        A melhorar: {weaknesses.join(" · ")}
+                      </p>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>

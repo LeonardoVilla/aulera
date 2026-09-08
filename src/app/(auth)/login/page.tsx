@@ -1,4 +1,5 @@
 import { signIn } from "@/lib/auth";
+import { isMicrosoftLoginEnabled } from "@/lib/auth.config";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,7 +25,7 @@ export default async function LoginPage({
             Acesse sua conta para começar a estudar.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <form
             action={async () => {
               "use server";
@@ -35,6 +36,21 @@ export default async function LoginPage({
               Entrar com Google
             </Button>
           </form>
+
+          {isMicrosoftLoginEnabled && (
+            <form
+              action={async () => {
+                "use server";
+                await signIn("microsoft-entra-id", {
+                  redirectTo: callbackUrl ?? "/dashboard",
+                });
+              }}
+            >
+              <Button type="submit" variant="outline" className="w-full">
+                Entrar com Microsoft
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

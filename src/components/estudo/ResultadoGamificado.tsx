@@ -6,11 +6,19 @@ type AnswerWithQuestion = {
   id: string;
   isCorrect: boolean | null;
   selectedOptionId: string | null;
+  textAnswer: string | null;
   question: {
     statement: string;
     correctOptionId: string | null;
     options: unknown;
+    type: string;
   };
+  correction: {
+    score: number;
+    feedback: string;
+    strengths: unknown;
+    weaknesses: unknown;
+  } | null;
 };
 
 export function ResultadoHeaderGamificado({
@@ -53,6 +61,53 @@ export function ResultadoHeaderGamificado({
 }
 
 export function RespostaCardGamificada({ answer }: { answer: AnswerWithQuestion }) {
+  if (answer.question.type === "DISCURSIVA") {
+    const strengths = (answer.correction?.strengths as string[] | null) ?? [];
+    const weaknesses = (answer.correction?.weaknesses as string[] | null) ?? [];
+    const score = answer.correction?.score;
+    const isGood = typeof score === "number" && score >= 7;
+
+    return (
+      <Card
+        className={
+          "border-2 " +
+          (isGood
+            ? "border-emerald-400/60 bg-emerald-50/60 dark:bg-emerald-950/20"
+            : "border-amber-400/60 bg-amber-50/60 dark:bg-amber-950/20")
+        }
+      >
+        <CardContent className="space-y-2 pt-6 text-sm">
+          <p className="font-medium">{answer.question.statement}</p>
+          <p className="text-muted-foreground">
+            <span aria-hidden className="mr-1">
+              ✍️
+            </span>
+            {answer.textAnswer ?? "não respondida"}
+          </p>
+          {answer.correction && (
+            <>
+              <p className="flex items-center gap-1 font-semibold">
+                <span aria-hidden>{isGood ? "⭐" : "📝"}</span>
+                Nota: {answer.correction.score.toFixed(1)}/10
+              </p>
+              <p>{answer.correction.feedback}</p>
+              {strengths.length > 0 && (
+                <p className="text-emerald-600 dark:text-emerald-400">
+                  ✅ {strengths.join(" · ")}
+                </p>
+              )}
+              {weaknesses.length > 0 && (
+                <p className="text-amber-600 dark:text-amber-400">
+                  ⚠️ {weaknesses.join(" · ")}
+                </p>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
   const options =
     (answer.question.options as { id: string; text: string }[] | null) ?? [];
   const selectedOption = options.find((o) => o.id === answer.selectedOptionId);

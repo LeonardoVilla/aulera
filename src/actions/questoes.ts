@@ -77,3 +77,64 @@ export async function gerarQuestoesParaSessao(params: {
     throw error;
   }
 }
+
+export async function gerarQuestaoDiscursivaParaSessao(params: {
+  groupId: string;
+  groupSlug: string;
+  groupName: string;
+  intensity: StudyIntensity;
+  userId: string;
+}) {
+  const { groupId, groupSlug, groupName, intensity, userId } = params;
+
+  const subject = await prisma.subject.findFirst({
+    where: { groupId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const subjectName = subject?.name ?? FALLBACK_SUBJECT_BY_GROUP[groupSlug];
+  const difficulty: Difficulty = "MEDIO";
+
+  const startedAt = Date.now();
+  try {
+    const generated = await geminiProvider.generateDiscursiveQuestion({
+      groupName,
+      subjectName,
+      difficulty,
+    });
+
+    await logAIUsage({
+      userId,
+      operation: "gerar_questao_discursiva",
+      model: "gemini-3.6-flash",
+      latencyMs: Date.now() - startedAt,
+      success: true,
+    });
+
+    return prisma.question.create({
+      data: {
+        groupId,
+        subjectId: subject?.id,
+        type: "DISCURSIVA",
+        difficulty,
+        intensity: [intensity],
+        statement: generated.statement,
+        rubric: JSON.stringify({
+          rubric: generated.rubric,
+          expectedTopics: generated.expectedTopics,
+        }),
+        generatedBy: "gemini",
+      },
+    });
+  } catch (error) {
+    await logAIUsage({
+      userId,
+      operation: "gerar_questao_discursiva",
+      model: "gemini-3.6-flash",
+      latencyMs: Date.now() - startedAt,
+      success: false,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
+}

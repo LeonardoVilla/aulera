@@ -1,7 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { responderQuestaoObjetiva, finalizarSessao } from "@/actions/sessoes";
+import {
+  responderQuestaoObjetiva,
+  responderQuestaoDiscursiva,
+  finalizarSessao,
+} from "@/actions/sessoes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -68,6 +72,44 @@ export default async function SessaoPage({
   }
 
   const question = pending.question;
+
+  if (question.type === "DISCURSIVA") {
+    return (
+      <div className="flex flex-col items-center gap-6">
+        <div className="w-full max-w-xl space-y-2">
+          <Progress value={(answeredCount / total) * 100} />
+          <p className="text-sm text-muted-foreground">
+            {answeredCount + 1} de {total} — questão discursiva
+          </p>
+        </div>
+
+        <Card className="w-full max-w-xl">
+          <CardHeader>
+            <CardTitle className="text-lg font-normal">
+              {question.statement}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={responderQuestaoDiscursiva} className="space-y-3">
+              <input type="hidden" name="sessionId" value={sessaoId} />
+              <input type="hidden" name="questionId" value={question.id} />
+              <textarea
+                name="textAnswer"
+                required
+                rows={8}
+                placeholder="Escreva sua resposta aqui..."
+                className="w-full rounded-md border p-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+              />
+              <Button type="submit" className="w-full">
+                Enviar resposta
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const options = (question.options as { id: string; text: string }[]) ?? [];
 
   if (isGamificado) {
