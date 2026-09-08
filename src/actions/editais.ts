@@ -61,7 +61,7 @@ export async function criarEdital(formData: FormData) {
  * das disciplinas/cronograma no banco. Pode ser chamada tanto logo após a
  * criação do Edital quanto manualmente para reprocessar um edital que falhou.
  */
-export async function processarEdital(editalId: string) {
+async function processarEdital(editalId: string) {
   const edital = await prisma.edital.findUnique({ where: { id: editalId } });
   if (!edital) {
     throw new Error("Edital não encontrado.");
