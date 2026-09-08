@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { INTENSITY_QUESTION_COUNT } from "@/lib/constants";
+import { gerarQuestoesParaSessao } from "@/actions/questoes";
+import { applyGamificationForSession } from "@/lib/gamification";
 import type { StudyIntensity } from "@/generated/prisma/enums";
 
 export async function iniciarSessao(groupSlug: string, intensity: StudyIntensity) {
@@ -16,7 +18,7 @@ export async function iniciarSessao(groupSlug: string, intensity: StudyIntensity
 
   const desiredCount = INTENSITY_QUESTION_COUNT[intensity];
 
-  const questions = await prisma.question.findMany({
+  let questions = await prisma.question.findMany({
     where: {
       groupId: group.id,
       isActive: true,
@@ -24,6 +26,23 @@ export async function iniciarSessao(groupSlug: string, intensity: StudyIntensity
     },
     take: desiredCount,
   });
+
+  if (questions.length < desiredCount) {
+    const missingCount = desiredCount - questions.length;
+    try {
+      const generated = await gerarQuestoesParaSessao({
+        groupId: group.id,
+        groupSlug: group.slug,
+        groupName: group.name,
+        intensity,
+        missingCount,
+        userId: user.id,
+      });
+      questions = [...questions, ...generated];
+    } catch {
+      // Segue com as questões fixture disponíveis se a geração via IA falhar.
+    }
+  }
 
   if (questions.length === 0) {
     throw new Error(
@@ -122,6 +141,8 @@ export async function finalizarSessao(sessionId: string) {
       scoreObjective,
     },
   });
+
+  await applyGamificationForSession(sessionId);
 
   redirect(`/sessao/${sessionId}/resultado`);
 }

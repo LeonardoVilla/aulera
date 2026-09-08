@@ -4,6 +4,11 @@ import { requireUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ResultadoHeaderGamificado,
+  RespostaCardGamificada,
+  VoltarDashboardGamificado,
+} from "@/components/estudo/ResultadoGamificado";
 
 export default async function ResultadoSessaoPage({
   params,
@@ -12,6 +17,11 @@ export default async function ResultadoSessaoPage({
 }) {
   const user = await requireUser();
   const { sessaoId } = await params;
+
+  const profile = await prisma.studentProfile.findUnique({
+    where: { userId: user.id },
+  });
+  const isGamificado = profile?.themePreference === "GAMIFICADO";
 
   const session = await prisma.studySession.findUnique({
     where: { id: sessaoId },
@@ -25,6 +35,27 @@ export default async function ResultadoSessaoPage({
 
   const correctCount = session.answers.filter((a) => a.isCorrect).length;
   const total = session.answers.length;
+
+  if (isGamificado) {
+    return (
+      <div className="mx-auto max-w-xl space-y-6">
+        <ResultadoHeaderGamificado
+          groupName={session.group.name}
+          correctCount={correctCount}
+          total={total}
+          scoreObjective={session.scoreObjective}
+        />
+
+        <div className="space-y-3">
+          {session.answers.map((a) => (
+            <RespostaCardGamificada key={a.id} answer={a} />
+          ))}
+        </div>
+
+        <VoltarDashboardGamificado />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-xl space-y-6">

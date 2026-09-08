@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { DashboardGamificado } from "@/components/estudo/DashboardGamificado";
 
 export default async function DashboardPage() {
   const user = await requireOnboardedUser();
@@ -17,6 +18,25 @@ export default async function DashboardPage() {
 
   const groupSlug = profile?.primaryGroup?.slug;
 
+  if (profile?.themePreference === "GAMIFICADO") {
+    const badgeCount = await prisma.userBadge.count({
+      where: { studentProfileId: profile.id },
+    });
+
+    return (
+      <DashboardGamificado
+        userName={user.name ?? ""}
+        groupName={profile.primaryGroup?.name ?? "não definido"}
+        groupSlug={groupSlug}
+        xp={profile.xp}
+        level={profile.level}
+        currentStreak={profile.currentStreak}
+        longestStreak={profile.longestStreak}
+        badgeCount={badgeCount}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -26,13 +46,24 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Link href={groupSlug ? `/estudar/${groupSlug}` : "#"}>
           <Card className="h-full transition-colors hover:bg-accent">
             <CardHeader>
               <CardTitle>Estudar agora</CardTitle>
               <CardDescription>
                 Escolha uma sessão rápida, de almoço ou focada.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link href="/simulados">
+          <Card className="h-full transition-colors hover:bg-accent">
+            <CardHeader>
+              <CardTitle>Simulados por Banca</CardTitle>
+              <CardDescription>
+                Questões inéditas no estilo Cesgranrio, FGV, Cebraspe e outras
+                bancas.
               </CardDescription>
             </CardHeader>
           </Card>

@@ -306,6 +306,62 @@ async function main() {
 
   await seedGroupQuestions("ti", TI_QUESTIONS);
   await seedGroupQuestions("direito", DIREITO_QUESTIONS);
+
+  const EXAM_BOARDS = [
+    { slug: "cesgranrio", name: "Cesgranrio" },
+    { slug: "fgv", name: "FGV" },
+    { slug: "cebraspe", name: "Cebraspe (CESPE)" },
+    { slug: "vunesp", name: "VUNESP" },
+    { slug: "fcc", name: "Fundação Carlos Chagas (FCC)" },
+    { slug: "iades", name: "IADES" },
+  ];
+  for (const board of EXAM_BOARDS) {
+    await prisma.examBoard.upsert({
+      where: { slug: board.slug },
+      update: {},
+      create: board,
+    });
+  }
+
+  const BADGES = [
+    {
+      code: "primeira_sessao",
+      name: "Primeiro passo",
+      description: "Complete sua primeira sessão de estudo.",
+      icon: "🎯",
+    },
+    {
+      code: "streak_7",
+      name: "Uma semana de foco",
+      description: "Estude por 7 dias seguidos.",
+      icon: "🔥",
+    },
+    {
+      code: "streak_30",
+      name: "Disciplina de ferro",
+      description: "Estude por 30 dias seguidos.",
+      icon: "🏆",
+    },
+    {
+      code: "100_questoes",
+      name: "Maratonista",
+      description: "Responda 100 questões.",
+      icon: "📚",
+    },
+    {
+      code: "gabarito",
+      name: "Gabarito",
+      description: "Acerte 100% das questões em uma sessão.",
+      icon: "⭐",
+    },
+  ];
+  for (const badge of BADGES) {
+    await prisma.badge.upsert({
+      where: { code: badge.code },
+      update: {},
+      create: badge,
+    });
+  }
 }
 
 main()

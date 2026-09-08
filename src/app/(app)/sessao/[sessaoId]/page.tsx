@@ -5,6 +5,10 @@ import { responderQuestaoObjetiva, finalizarSessao } from "@/actions/sessoes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  ProgressoLudico,
+  QuestaoObjetivaGamificada,
+} from "@/components/estudo/QuestaoObjetivaGamificada";
 
 export default async function SessaoPage({
   params,
@@ -13,6 +17,11 @@ export default async function SessaoPage({
 }) {
   const user = await requireUser();
   const { sessaoId } = await params;
+
+  const profile = await prisma.studentProfile.findUnique({
+    where: { userId: user.id },
+  });
+  const isGamificado = profile?.themePreference === "GAMIFICADO";
 
   const session = await prisma.studySession.findUnique({
     where: { id: sessaoId },
@@ -60,6 +69,22 @@ export default async function SessaoPage({
 
   const question = pending.question;
   const options = (question.options as { id: string; text: string }[]) ?? [];
+
+  if (isGamificado) {
+    return (
+      <div className="flex flex-col items-center gap-6">
+        <ProgressoLudico answeredCount={answeredCount} total={total} />
+        <QuestaoObjetivaGamificada
+          sessaoId={sessaoId}
+          questionId={question.id}
+          statement={question.statement}
+          options={options}
+          questionNumber={answeredCount + 1}
+          total={total}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-6">

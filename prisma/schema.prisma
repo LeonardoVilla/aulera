@@ -34,6 +34,7 @@ model User {
   profile       StudentProfile?
   studySessions StudySession[]
   answers       Answer[]
+  aiUsageLogs   AIUsageLog[]
 }
 
 model Account {
@@ -87,18 +88,52 @@ model StudyGroup {
   studySessions   StudySession[]
 }
 
+enum ThemePreference {
+  CLASSICO
+  GAMIFICADO
+}
+
 model StudentProfile {
-  id                 String    @id @default(cuid())
-  userId             String    @unique
+  id                 String          @id @default(cuid())
+  userId             String          @unique
   primaryGroupId     String?
   weeklyAvailability Json?
   dailyMinutesTarget Int?
   onboardedAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  themePreference    ThemePreference @default(CLASSICO)
+  xp                 Int             @default(0)
+  level              Int             @default(1)
+  currentStreak      Int             @default(0)
+  longestStreak      Int             @default(0)
+  lastStudyDate      DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   primaryGroup StudyGroup? @relation(fields: [primaryGroupId], references: [id])
+  badges       UserBadge[]
+}
+
+model Badge {
+  id          String @id @default(cuid())
+  code        String @unique
+  name        String
+  description String @db.Text
+  icon        String @default("🏅")
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  id               String   @id @default(cuid())
+  studentProfileId String
+  badgeId          String
+  earnedAt         DateTime @default(now())
+
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  badge          Badge          @relation(fields: [badgeId], references: [id])
+
+  @@unique([studentProfileId, badgeId])
 }
 
 // ---------- Disciplinas e questões ----------
@@ -153,13 +188,28 @@ model Question {
   estimatedSeconds Int              @default(120)
   generatedBy      String           @default("fixture")
   isActive         Boolean          @default(true)
+  examBoardId      String?
   createdAt        DateTime         @default(now())
 
-  group   StudyGroup @relation(fields: [groupId], references: [id])
-  subject Subject?   @relation(fields: [subjectId], references: [id])
-  answers Answer[]
+  group     StudyGroup @relation(fields: [groupId], references: [id])
+  subject   Subject?   @relation(fields: [subjectId], references: [id])
+  examBoard ExamBoard? @relation(fields: [examBoardId], references: [id])
+  answers   Answer[]
 
   @@index([groupId, subjectId, type, difficulty])
+  @@index([examBoardId])
+}
+
+// ---------- Bancas examinadoras (para simulados por banca) ----------
+
+model ExamBoard {
+  id          String   @id @default(cuid())
+  slug        String   @unique // "cesgranrio" | "fgv" | "cebraspe" | ...
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  questions Question[]
 }
 
 // ---------- Sessões de estudo ("pílulas") ----------
@@ -207,4 +257,25 @@ model Answer {
   @@unique([sessionId, questionId])
   @@index([sessionId])
   @@index([userId])
+}
+
+// ---------- Observabilidade de uso de IA ----------
+
+model AIUsageLog {
+  id               String   @id @default(cuid())
+  userId           String?
+  operation        String
+  model            String
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  latencyMs        Int?
+  success          Boolean  @default(true)
+  errorMessage     String?  @db.Text
+  createdAt        DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([operation])
 }

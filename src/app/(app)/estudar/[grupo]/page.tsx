@@ -10,16 +10,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const INTENSITY_EMOJI: Record<keyof typeof INTENSITY_LABELS, string> = {
+  CURTA: "⚡",
+  ALMOCO: "🍽️",
+  FOCO: "🎯",
+};
+
 export default async function EstudarGrupoPage({
   params,
 }: {
   params: Promise<{ grupo: string }>;
 }) {
-  await requireOnboardedUser();
+  const user = await requireOnboardedUser();
   const { grupo } = await params;
 
   const group = await prisma.studyGroup.findUnique({ where: { slug: grupo } });
   if (!group) notFound();
+
+  const profile = await prisma.studentProfile.findUnique({
+    where: { userId: user.id },
+  });
+  const isGamificado = profile?.themePreference === "GAMIFICADO";
 
   return (
     <div className="space-y-6">
@@ -35,10 +46,25 @@ export default async function EstudarGrupoPage({
           const enumKey = slug.toUpperCase() as keyof typeof INTENSITY_LABELS;
           return (
             <Link key={slug} href={`/estudar/${grupo}/${slug}`}>
-              <Card className="h-full transition-colors hover:bg-accent">
+              <Card
+                className={
+                  isGamificado
+                    ? "h-full border-2 border-primary/30 transition-all hover:scale-[1.02] hover:border-primary hover:shadow-md"
+                    : "h-full transition-colors hover:bg-accent"
+                }
+              >
                 <CardHeader>
-                  <CardTitle>{INTENSITY_LABELS[enumKey]}</CardTitle>
-                  <CardDescription>Clique para começar</CardDescription>
+                  <CardTitle>
+                    {isGamificado && (
+                      <span aria-hidden className="mr-2">
+                        {INTENSITY_EMOJI[enumKey]}
+                      </span>
+                    )}
+                    {INTENSITY_LABELS[enumKey]}
+                  </CardTitle>
+                  <CardDescription>
+                    {isGamificado ? "Clique para ganhar XP" : "Clique para começar"}
+                  </CardDescription>
                 </CardHeader>
               </Card>
             </Link>
