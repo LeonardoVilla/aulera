@@ -1,5 +1,6 @@
 import { signIn } from "@/lib/auth";
 import { isMicrosoftLoginEnabled } from "@/lib/auth.config";
+import { ThemePreferenceToggle } from "@/components/estudo/ThemePreferenceToggle";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,7 +26,14 @@ export default async function LoginPage({
             Acesse sua conta para começar a estudar.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-center text-xs font-medium text-muted-foreground">
+              Estilo da plataforma
+            </p>
+            <ThemePreferenceToggle defaultValue="CLASSICO" />
+          </div>
+
           <form
             action={async () => {
               "use server";
