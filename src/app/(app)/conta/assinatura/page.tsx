@@ -19,6 +19,11 @@ const STATUS_LABEL: Record<string, string> = {
   INCOMPLETE: "Incompleta",
 };
 
+const isBillingConfigured = () =>
+  !!process.env.STRIPE_SECRET_KEY &&
+  !!process.env.STRIPE_PRICE_BASICO &&
+  !!process.env.STRIPE_PRICE_PREMIUM;
+
 export default async function AssinaturaPage({
   searchParams,
 }: {
@@ -26,6 +31,7 @@ export default async function AssinaturaPage({
 }) {
   const user = await requireUser();
   const { checkout } = await searchParams;
+  const billingConfigured = isBillingConfigured();
 
   const subscription = await prisma.subscription.findFirst({
     where: { userId: user.id },
@@ -87,7 +93,12 @@ export default async function AssinaturaPage({
             </p>
           )}
 
-          {isPaidActive ? (
+          {!billingConfigured ? (
+            <p className="text-sm text-muted-foreground">
+              O pagamento de assinaturas ainda não foi ativado nesta
+              plataforma. Volte em breve.
+            </p>
+          ) : isPaidActive ? (
             <form action={criarPortalSession}>
               <Button type="submit" className="w-full">
                 Gerenciar assinatura
