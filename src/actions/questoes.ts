@@ -1,7 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { geminiProvider } from "@/lib/ai/gemini-provider";
+import { aiProvider, getLastUsedAIModel } from "@/lib/ai/fallback-provider";
 import { logAIUsage } from "@/lib/ai/usage-tracker";
 import type { Difficulty, StudyIntensity } from "@/generated/prisma/enums";
 
@@ -31,17 +31,18 @@ export async function gerarQuestoesParaSessao(params: {
 
   const startedAt = Date.now();
   try {
-    const generated = await geminiProvider.generateObjectiveQuestions({
+    const generated = await aiProvider.generateObjectiveQuestions({
       groupName,
       subjectName,
       difficulty,
       quantity: missingCount,
     });
+    const modelUsed = getLastUsedAIModel();
 
     await logAIUsage({
       userId,
       operation: "gerar_questao",
-      model: "gemini-3.6-flash",
+      model: modelUsed,
       latencyMs: Date.now() - startedAt,
       success: true,
     });
@@ -58,7 +59,7 @@ export async function gerarQuestoesParaSessao(params: {
             statement: q.statement,
             options: q.options,
             correctOptionId: q.correctOptionId,
-            generatedBy: "gemini",
+            generatedBy: modelUsed,
           },
         }),
       ),
@@ -69,7 +70,7 @@ export async function gerarQuestoesParaSessao(params: {
     await logAIUsage({
       userId,
       operation: "gerar_questao",
-      model: "gemini-3.6-flash",
+      model: getLastUsedAIModel(),
       latencyMs: Date.now() - startedAt,
       success: false,
       errorMessage: error instanceof Error ? error.message : String(error),
@@ -97,16 +98,17 @@ export async function gerarQuestaoDiscursivaParaSessao(params: {
 
   const startedAt = Date.now();
   try {
-    const generated = await geminiProvider.generateDiscursiveQuestion({
+    const generated = await aiProvider.generateDiscursiveQuestion({
       groupName,
       subjectName,
       difficulty,
     });
+    const modelUsed = getLastUsedAIModel();
 
     await logAIUsage({
       userId,
       operation: "gerar_questao_discursiva",
-      model: "gemini-3.6-flash",
+      model: modelUsed,
       latencyMs: Date.now() - startedAt,
       success: true,
     });
@@ -123,14 +125,14 @@ export async function gerarQuestaoDiscursivaParaSessao(params: {
           rubric: generated.rubric,
           expectedTopics: generated.expectedTopics,
         }),
-        generatedBy: "gemini",
+        generatedBy: modelUsed,
       },
     });
   } catch (error) {
     await logAIUsage({
       userId,
       operation: "gerar_questao_discursiva",
-      model: "gemini-3.6-flash",
+      model: getLastUsedAIModel(),
       latencyMs: Date.now() - startedAt,
       success: false,
       errorMessage: error instanceof Error ? error.message : String(error),

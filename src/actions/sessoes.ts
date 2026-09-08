@@ -10,7 +10,7 @@ import {
   gerarQuestaoDiscursivaParaSessao,
 } from "@/actions/questoes";
 import { applyGamificationForSession } from "@/lib/gamification";
-import { geminiProvider } from "@/lib/ai/gemini-provider";
+import { aiProvider, getLastUsedAIModel } from "@/lib/ai/fallback-provider";
 import { logAIUsage } from "@/lib/ai/usage-tracker";
 import type { StudyIntensity } from "@/generated/prisma/enums";
 
@@ -186,17 +186,18 @@ export async function responderQuestaoDiscursiva(formData: FormData) {
       : { rubric: "", expectedTopics: [] as string[] };
 
     const startedAt = Date.now();
-    const grade = await geminiProvider.gradeDiscursive({
+    const grade = await aiProvider.gradeDiscursive({
       statement: question.statement,
       rubric: rubricData.rubric,
       expectedTopics: rubricData.expectedTopics,
       studentAnswer: parsed.textAnswer,
     });
+    const modelUsed = getLastUsedAIModel();
 
     await logAIUsage({
       userId: user.id,
       operation: "corrigir_discursiva",
-      model: "gemini-3.6-flash",
+      model: modelUsed,
       latencyMs: Date.now() - startedAt,
       success: true,
     });
@@ -217,7 +218,7 @@ export async function responderQuestaoDiscursiva(formData: FormData) {
         feedback: grade.feedback,
         strengths: grade.strengths,
         weaknesses: grade.weaknesses,
-        model: "gemini-3.6-flash",
+        model: modelUsed,
       },
       create: {
         answerId: answer.id,
@@ -225,14 +226,14 @@ export async function responderQuestaoDiscursiva(formData: FormData) {
         feedback: grade.feedback,
         strengths: grade.strengths,
         weaknesses: grade.weaknesses,
-        model: "gemini-3.6-flash",
+        model: modelUsed,
       },
     });
   } catch (error) {
     await logAIUsage({
       userId: user.id,
       operation: "corrigir_discursiva",
-      model: "gemini-3.6-flash",
+      model: getLastUsedAIModel(),
       latencyMs: 0,
       success: false,
       errorMessage: error instanceof Error ? error.message : String(error),

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { geminiProvider } from "@/lib/ai/gemini-provider";
+import { aiProvider, getLastUsedAIModel } from "@/lib/ai/fallback-provider";
 import { logAIUsage } from "@/lib/ai/usage-tracker";
 import type { Difficulty } from "@/generated/prisma/enums";
 
@@ -45,18 +45,19 @@ async function gerarQuestoesPorBanca(params: {
   const startedAt = Date.now();
 
   try {
-    const generated = await geminiProvider.generateObjectiveQuestions({
+    const generated = await aiProvider.generateObjectiveQuestions({
       groupName,
       subjectName,
       difficulty,
       quantity,
       examBoardName,
     });
+    const modelUsed = getLastUsedAIModel();
 
     await logAIUsage({
       userId,
       operation: "gerar_simulado_banca",
-      model: "gemini-3.6-flash",
+      model: modelUsed,
       latencyMs: Date.now() - startedAt,
       success: true,
     });
@@ -73,7 +74,7 @@ async function gerarQuestoesPorBanca(params: {
             statement: q.statement,
             options: q.options,
             correctOptionId: q.correctOptionId,
-            generatedBy: "gemini",
+            generatedBy: modelUsed,
             examBoardId,
           },
         }),
@@ -85,7 +86,7 @@ async function gerarQuestoesPorBanca(params: {
     await logAIUsage({
       userId,
       operation: "gerar_simulado_banca",
-      model: "gemini-3.6-flash",
+      model: getLastUsedAIModel(),
       latencyMs: Date.now() - startedAt,
       success: false,
       errorMessage: error instanceof Error ? error.message : String(error),

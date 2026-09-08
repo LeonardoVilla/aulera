@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth-guards";
 import { uploadEditalPdf } from "@/lib/blob";
 import { extractTextFromPdf } from "@/lib/pdf/extract-text";
-import { geminiProvider } from "@/lib/ai/gemini-provider";
+import { aiProvider, getLastUsedAIModel } from "@/lib/ai/fallback-provider";
 import { logAIUsage } from "@/lib/ai/usage-tracker";
 import type { ParsedEdital } from "@/lib/ai/schemas/edital.schema";
 
@@ -90,11 +90,11 @@ async function processarEdital(editalId: string) {
     const startedAt = Date.now();
     let parsed: ParsedEdital;
     try {
-      parsed = await geminiProvider.parseEdital({ rawText });
+      parsed = await aiProvider.parseEdital({ rawText });
       await logAIUsage({
         userId: edital.userId,
         operation: "parsear_edital",
-        model: "gemini-3.6-flash",
+        model: getLastUsedAIModel(),
         latencyMs: Date.now() - startedAt,
         success: true,
       });
@@ -102,7 +102,7 @@ async function processarEdital(editalId: string) {
       await logAIUsage({
         userId: edital.userId,
         operation: "parsear_edital",
-        model: "gemini-3.6-flash",
+        model: getLastUsedAIModel(),
         latencyMs: Date.now() - startedAt,
         success: false,
         errorMessage: error instanceof Error ? error.message : String(error),
