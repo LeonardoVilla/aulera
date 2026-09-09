@@ -1,7 +1,12 @@
 import { put } from "@vercel/blob";
 
 /**
- * Faz upload do PDF de um edital para o Vercel Blob e retorna a URL pública.
+ * Faz upload do PDF de um edital para o Vercel Blob e retorna a URL de
+ * acesso. O store é privado (editais são documentos do usuário, não devem
+ * ficar publicamente acessíveis por URL adivinhada) — o download interno
+ * feito pelo pipeline de processamento (extractTextFromPdf) usa o mesmo
+ * `BLOB_READ_WRITE_TOKEN` do servidor para acessar o arquivo mesmo sendo
+ * privado.
  *
  * IMPORTANTE: requer a variável de ambiente `BLOB_READ_WRITE_TOKEN` apontando
  * para um Vercel Blob store real. Enquanto essa variável não estiver
@@ -18,7 +23,7 @@ export async function uploadEditalPdf(
   const pathname = `editais/${userId}/${timestamp}-${safeFileName}`;
 
   const blob = await put(pathname, file, {
-    access: "public",
+    access: "private",
     contentType: file.type || "application/pdf",
   });
 

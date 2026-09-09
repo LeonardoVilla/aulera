@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { get } from "@vercel/blob";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth-guards";
 import { uploadEditalPdf } from "@/lib/blob";
@@ -73,13 +74,13 @@ async function processarEdital(editalId: string) {
       data: { status: "EXTRAINDO_TEXTO", errorMessage: null },
     });
 
-    const response = await fetch(edital.blobUrl);
-    if (!response.ok) {
-      throw new Error(
-        `Não foi possível baixar o PDF do edital (HTTP ${response.status}).`,
-      );
+    // O blob é privado (ver lib/blob.ts), então precisa ser lido via SDK
+    // (autenticado com BLOB_READ_WRITE_TOKEN), não via fetch direto na URL.
+    const blobResult = await get(edital.blobUrl, { access: "private" });
+    if (!blobResult) {
+      throw new Error("Não foi possível encontrar o PDF do edital no Blob.");
     }
-    const arrayBuffer = await response.arrayBuffer();
+    const arrayBuffer = await new Response(blobResult.stream).arrayBuffer();
     const rawText = await extractTextFromPdf(arrayBuffer);
 
     await prisma.edital.update({
