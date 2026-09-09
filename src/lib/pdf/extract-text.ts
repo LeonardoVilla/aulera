@@ -8,8 +8,18 @@ import { extractText, getDocumentProxy } from "unpdf";
 export async function extractTextFromPdf(
   buffer: ArrayBuffer | Uint8Array,
 ): Promise<string> {
-  const data =
-    buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  // `unpdf`/pdf.js exige um Uint8Array "puro": rejeita instâncias de
+  // Buffer do Node (que technically `instanceof Uint8Array === true`, por
+  // ser subclasse, mas falham na validação interna da lib) com o erro
+  // "Please provide binary data as `Uint8Array`, rather than `Buffer`."
+  // Por isso sempre recriamos um Uint8Array novo a partir dos bytes, em vez
+  // de reaproveitar a instância recebida quando ela já "parece" um
+  // Uint8Array.
+  const data = new Uint8Array(
+    buffer instanceof ArrayBuffer
+      ? buffer
+      : buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
+  );
 
   const pdf = await getDocumentProxy(data);
   const { text } = await extractText(pdf, { mergePages: true });
