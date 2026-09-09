@@ -22,22 +22,53 @@ export function getLastUsedAIModel(): string {
 }
 
 /**
- * Erros de quota/rate limit costumam vir com código HTTP 429, mas cada SDK
- * expõe isso de um jeito diferente (status, code, mensagem). Detectamos de
- * forma heurística para não depender de um único formato.
+ * Erros de quota/rate limit (429) ou de indisponibilidade temporária do
+ * serviço (503, "model overloaded/high demand") costumam vir com um código
+ * HTTP específico, mas cada SDK expõe isso de um jeito diferente (status,
+ * code, mensagem, ou até aninhado num campo `error` dentro da mensagem, como
+ * faz o SDK do Gemini). Detectamos de forma heurística para não depender de
+ * um único formato — em qualquer um desses casos, vale tentar o outro
+ * provedor em vez de propagar o erro direto ao usuário.
  */
-function isQuotaOrRateLimitError(error: unknown): boolean {
+function isTransientProviderError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
 
   const err = error as {
     status?: number;
-    code?: string;
+    code?: string | number;
     message?: string;
   };
 
-  if (err.status === 429) return true;
-  if (err.code === "RESOURCE_EXHAUSTED" || err.code === "rate_limit_exceeded") {
+  if (err.status === 429 || err.status === 503) return true;
+  if (
+    err.code === "RESOURCE_EXHAUSTED" ||
+    err.code === "rate_limit_exceeded" ||
+    err.code === "UNAVAILABLE" ||
+    err.code === 429 ||
+    err.code === 503
+  ) {
     return true;
+  }
+
+  // O SDK do Gemini (@google/genai) costuma embutir o corpo do erro da API
+  // como uma string JSON dentro de `message`
+  // (ex: `{"error":{"code":503,"status":"UNAVAILABLE",...}}`), em vez de
+  // expor `status`/`code` diretamente no objeto de erro. Tentamos parsear
+  // esse formato antes de cair na checagem textual simples.
+  if (err.message) {
+    try {
+      const parsed = JSON.parse(err.message) as {
+        error?: { code?: number; status?: string };
+      };
+      const nestedCode = parsed.error?.code;
+      const nestedStatus = parsed.error?.status;
+      if (nestedCode === 429 || nestedCode === 503) return true;
+      if (nestedStatus === "RESOURCE_EXHAUSTED" || nestedStatus === "UNAVAILABLE") {
+        return true;
+      }
+    } catch {
+      // Não era JSON — segue para a checagem textual abaixo.
+    }
   }
 
   const message = err.message?.toLowerCase() ?? "";
@@ -45,7 +76,11 @@ function isQuotaOrRateLimitError(error: unknown): boolean {
     message.includes("quota") ||
     message.includes("rate limit") ||
     message.includes("resource_exhausted") ||
-    message.includes("429")
+    message.includes("unavailable") ||
+    message.includes("high demand") ||
+    message.includes("overloaded") ||
+    message.includes("429") ||
+    message.includes("503")
   );
 }
 
@@ -53,14 +88,16 @@ const isOpenAiConfigured = () => !!process.env.OPENAI_API_KEY;
 
 /**
  * Provider com fallback automático: tenta sempre o Gemini primeiro (provider
- * principal); se a chamada falhar por limite de quota/rate limit, tenta a
- * mesma operação via OpenAI (gpt-5-mini), sem o chamador precisar saber disso.
- * Se o OpenAI também não estiver configurado (sem OPENAI_API_KEY), o erro
- * original do Gemini é relançado normalmente.
+ * principal); se a chamada falhar por quota/rate limit (429) ou por
+ * indisponibilidade temporária do serviço (503/"high demand"), tenta a
+ * mesma operação via OpenAI (gpt-5-mini), sem o chamador precisar saber
+ * disso. Se o OpenAI também não estiver configurado (sem OPENAI_API_KEY), o
+ * erro original do Gemini é relançado normalmente.
  *
- * Erros que não são de quota (ex: validação de schema, rede) não disparam o
- * fallback — nesse caso o provider principal já tem sua própria lógica de
- * retry (ver geminiProvider.parseEdital), e um erro de fato deve propagar.
+ * Erros que não são transitórios (ex: validação de schema, entrada
+ * inválida) não disparam o fallback — nesse caso o provider principal já
+ * tem sua própria lógica de retry (ver geminiProvider.parseEdital), e um
+ * erro de fato deve propagar.
  *
  * Use `getLastUsedAIModel()` logo após `await aiProvider.<operação>(...)`
  * para saber qual modelo respondeu, e registrar isso em logAIUsage.
@@ -75,7 +112,7 @@ function withFallback<T extends keyof AIProvider>(
       lastUsedModelStorage.enterWith({ model: GEMINI_MODEL });
       return result;
     } catch (error) {
-      if (!isQuotaOrRateLimitError(error) || !isOpenAiConfigured()) {
+      if (!isTransientProviderError(error) || !isOpenAiConfigured()) {
         lastUsedModelStorage.enterWith({ model: GEMINI_MODEL });
         throw error;
       }
@@ -86,7 +123,9 @@ function withFallback<T extends keyof AIProvider>(
         latencyMs: 0,
         success: false,
         errorMessage:
-          error instanceof Error ? error.message : "Erro de quota no Gemini",
+          error instanceof Error
+            ? error.message
+            : "Erro transitório no Gemini",
       });
 
       // @ts-expect-error -- spread de args genérico por operação
