@@ -1,43 +1,23 @@
-const MAX_CHARS = 15000;
+// O Gemini 3.6 Flash tem janela de contexto de mais de 1M tokens (~4M
+// caracteres), então cabe enviar o edital quase inteiro sem custo proibitivo.
+// O conteúdo programático completo (Anexo) e o cronograma (Anexo) costumam
+// ficar nas últimas páginas de editais longos — um limite baixo (usado antes)
+// cortava o texto antes de alcançá-los, resultando em disciplinas/datas
+// vazias. 200.000 caracteres cobrem confortavelmente a grande maioria dos
+// editais (mesmo os de 40+ páginas de Diário Oficial), com folga de sobra
+// no contexto do modelo.
+const MAX_CHARS = 200_000;
 
 /**
- * Trunca o texto bruto do edital para evitar estourar o contexto do modelo.
- * Editais podem ter 20-40 páginas; tentamos manter do início até o fim do
- * cronograma (se conseguirmos localizar palavras-chave típicas de cronograma
- * perto do fim do trecho relevante). Se não conseguirmos identificar,
- * simplesmente cortamos nos primeiros MAX_CHARS caracteres.
+ * Trunca o texto bruto do edital apenas no caso raro de ultrapassar
+ * MAX_CHARS (editais excepcionalmente longos). Corta nos primeiros
+ * MAX_CHARS caracteres — não é ideal para esses casos extremos, mas é
+ * preferível a estourar o contexto do modelo.
  */
 function truncateRelevantText(rawText: string): string {
   if (rawText.length <= MAX_CHARS) {
     return rawText;
   }
-
-  // Tenta estender um pouco além do limite básico para capturar o
-  // cronograma, caso ele apareça logo depois do corte ingênuo.
-  const searchWindowEnd = Math.min(rawText.length, MAX_CHARS + 5000);
-  const window = rawText.slice(0, searchWindowEnd);
-
-  const scheduleKeywords = [
-    "CRONOGRAMA",
-    "RESULTADO FINAL",
-    "DIVULGAÇÃO DO RESULTADO",
-    "HOMOLOGAÇÃO",
-  ];
-
-  let lastKeywordIndex = -1;
-  for (const keyword of scheduleKeywords) {
-    const idx = window.toUpperCase().lastIndexOf(keyword);
-    if (idx > lastKeywordIndex) {
-      lastKeywordIndex = idx;
-    }
-  }
-
-  if (lastKeywordIndex > MAX_CHARS * 0.5) {
-    // Encontrou uma referência a cronograma/resultado razoavelmente longe;
-    // corta um pouco depois dela para incluir a data associada.
-    return window.slice(0, Math.min(window.length, lastKeywordIndex + 1500));
-  }
-
   return rawText.slice(0, MAX_CHARS);
 }
 
